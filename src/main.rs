@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
-fn main() {
+fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         println!("Usage: {} [--help] [--random] [--base64] [--hex] [--check] [--checkp <password>] <length>", args[0]);
@@ -63,6 +63,7 @@ fn main() {
             Err(e) => eprintln!("Error generating password: {}", e),
         }
     }
+    Ok(())
 }
 
 fn generate_password(length: usize, device: &str, base64: bool, hex: bool) -> io::Result<String> {
@@ -75,7 +76,7 @@ fn generate_password(length: usize, device: &str, base64: bool, hex: bool) -> io
     } else if hex {
         Ok(hex::encode(&buffer))
     } else {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~!@#$%^&*()-=_+[]{};:,.<>/?|";
+        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~!@#$%^&*()";
         let mut password = String::new();
         for byte in buffer {
             let index = (byte as usize) % chars.len();
@@ -105,14 +106,14 @@ fn check_password_strength(password: &str) {
     }
 
     let score = length_score + 5 * (digit_score + upper_score + lower_score + special_score);
-    let strength = if score < 15 {
-        "weak"
+    let (strength, color) = if score < 15 {
+        ("weak", "\x1b[31m") // red
     } else if score < 25 {
-        "medium"
+        ("medium", "\x1b[33m") // yellow
     } else {
-        "strong"
+        ("strong", "\x1b[32m") // green
     };
 
-    println!("Password strength: {} (score: {})", strength, score);
+    println!("Password strength: {}{} (score: {})\x1b[0m", color, strength, score);
 }
 

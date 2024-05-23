@@ -6,13 +6,11 @@ use std::process;
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        println!("Usage: {} [--help] [--random] [--base64] [--hex] [--check] [--checkp <password>] <length>", args[0]);
+        println!("Usage: {} [--help] [--random] [--check] [--checkp <password>] <length>", args[0]);
         process::exit(1);
     }
 
     let mut random = false;
-    let mut base64 = false;
-    let mut hex = false;
     let mut check = false;
     let mut checkp = false;
     let mut password_to_check = String::new();
@@ -22,12 +20,10 @@ fn main() -> io::Result<()> {
     while i < args.len() {
         match args[i].as_str() {
             "--help" => {
-                println!("Usage: {} [--help] [--random] [--base64] [--hex] [--check] [--checkp <password>] <length>", args[0]);
+                println!("Usage: {} [--help] [--random] [--check] [--checkp <password>] <length>", args[0]);
                 process::exit(0);
             }
             "--random" => random = true,
-            "--base64" => base64 = true,
-            "--hex" => hex = true,
             "--check" => check = true,
             "--checkp" => {
                 checkp = true;
@@ -39,6 +35,10 @@ fn main() -> io::Result<()> {
                     process::exit(1);
                 }
             }
+            arg if arg.starts_with("--") => {
+                eprintln!("Error: Non-existent argument found: {}", arg);
+                process::exit(1);
+            }
             _ => length = args[i].parse().unwrap_or(0),
         }
         i += 1;
@@ -48,9 +48,9 @@ fn main() -> io::Result<()> {
         check_password_strength(&password_to_check);
     } else {
         let password = if random {
-            generate_password(length, "/dev/random", base64, hex)
+            generate_password(length, "/dev/urandom")
         } else {
-            generate_password(length, "/dev/urandom", base64, hex)
+            generate_password(length, "/dev/urandom")
         };
 
         match password {
@@ -66,24 +66,18 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn generate_password(length: usize, device: &str, base64: bool, hex: bool) -> io::Result<String> {
+fn generate_password(length: usize, device: &str) -> io::Result<String> {
     let mut file = File::open(device)?;
     let mut buffer = vec![0; length];
     file.read_exact(&mut buffer)?;
 
-    if base64 {
-        Ok(base64::encode(&buffer))
-    } else if hex {
-        Ok(hex::encode(&buffer))
-    } else {
-        let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~!@#$%^&*()";
-        let mut password = String::new();
-        for byte in buffer {
-            let index = (byte as usize) % chars.len();
-            password.push(chars.chars().nth(index).unwrap());
-        }
-        Ok(password)
+    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789~!@#$%^&*()";
+    let mut password = String::new();
+    for byte in buffer {
+        let index = (byte as usize) % chars.len();
+        password.push(chars.chars().nth(index).unwrap());
     }
+    Ok(password)
 }
 
 fn check_password_strength(password: &str) {
@@ -116,4 +110,3 @@ fn check_password_strength(password: &str) {
 
     println!("Password strength: {}{} (score: {})\x1b[0m", color, strength, score);
 }
-
